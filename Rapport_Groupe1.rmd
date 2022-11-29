@@ -1,0 +1,585 @@
+---
+title: "Rapport projet AC04"
+author: "Abou Ghalia Mostafa, Azzouz Ilian, Eddeghai Yasmine, Guilbert--Ly Anne-Soline"
+date: "06/06/2022"
+output: html_document
+---
+# Projet AC04 - Régression linéaire 
+<img style="position:float; float:right" src="logo_utc.png" alt="Logo UTC" width="200"/>
+
+## AC04 P22 
+Abou Ghalia Mostafa (20%)
+
+Azzouz Ilian (20%)
+
+Eddeghai Yasmine (30%)
+
+Guilbert--Ly Anne-Soline (30%)
+
+# Installation
+```{r echo = F, results = 'hide'}
+library(latex2exp)
+library(installr)
+rm(list = ls())
+``` 
+
+# I. Modèle de régression linéaire simple Gaussien et estimation des paramètres
+
+## I.1. Modèle 
+On a $n$ couples $(x_1, Y_1), ..., (x_n, Y_n)$ avec $x_i \in \mathbb{R}$ et $Y_i$ v.A. réelle de réalisation $y_i$.
+
+On suppose $\mathbb{E}(Y_i) = a + bx_i \forall i = 1,.., n$. Donc on a le modèle de régression linéaire suivant :
+$Y_i = a + bx_i + \epsilon_i,$ avec $\mathbb{E}(\epsilon_i) = 0, \forall i \in \{1,.., n\}$,
+les $(\epsilon_i)_i$ sont les bruits.
+
+On suppose les erreurs indépendantes, normales, et de même variance $\sigma²$.
+
+Donc $\epsilon_1, ...,n \overset{\mathrm{iid}}{\sim}\mathcal{N}(0,\,\sigma^{2})$.
+Donc $\forall i \in \{1, ..., n\}, Y_i {\sim}\mathcal{N}(a+bx_i, \sigma²)$
+
+Et les paramètre du modèle sont : $a, b$ réels et $\sigma² > 0$
+
+## I.2. Estimation 
+
+Les EMV $\hat{a}, \hat{b}, \hat{\sigma}²_{MV}$ sont calculées à partir de moyennes, variance, ... 
+Et on calcul à partir de ces résultats les estimations $\hat{Y}_i$, et $\hat{\epsilon}_i$
+
+## I.3. Propriétés des estimateurs et I.C. 
+
+Les estimateurs de $a$, $b$, et $\sigma$ sont sans biais. Leurs lois sont connues et, celles de a et b sont gaussiennes.
+=> On peut obtenir des fonctions pivotales exactes pour $a$ et $b$ pour déterminer des intervalles de confiance.
+
+
+# II. Données simulées
+## (Q1) Simulation de v.a
+```{r}
+a0 <- round(runif(1, 3, 15), 2)
+b0 <- round(runif(1, 1, 5), 2)
+s0 <- round(runif(1, 1, 3), 2)
+```
+### (Q1a) (Q1b) Simulation de $n$ v.a. iid de loi uniforme et de v.a. modèle régréssion linéaire Gaussien
+Pour simuler $n$ variables aléatoires indépendantes et identiquement distribuées $X_1, ..., X_n$, nous utilisons la fonction ```sample``` pour prendre une valeur $n$ entre 200 et 1000.
+Ensuite, les $X_1, ..., X_n$ qui suivent la loi uniforme sur $[0,5]$ sont simulées avec la fonction ```runif```.
+Pour simuler $n$ variables aléatoires indépendantes et identiquement distribuées $Y_1, ..., Y_n$ qui suivent la loi Gaussien de paramètres $a = a_0, b = b_0$ et $\sigma² = s_0$, nous pouvons utiliser la fonction ```rnorm```.
+
+```{r}
+n <- sample(800, 1) + 200
+
+generate_sample <- function(n) {
+    xi <- runif(n, 0, 5) # Vector of (xi), i=1..n
+    Yi <- rnorm(n, a0 + b0 * xi, sqrt(s0))
+    # rnorm takes mean and standard deviation, not variance
+
+    return(list(xi = xi, Yi = Yi))
+}
+
+sample <- generate_sample(n)
+xi <- sample$xi
+Yi <- sample$Yi
+```
+
+## (Q2) Graphique de nuage de points
+Pour représenter le graphique, nous utilisons les fonctions ```plot``` pour le 
+nuage de points $(x_i, y_i)_{1\le i\le n}$, et ```abline``` pour la droite de régression d'équation
+$y = a+bx$ avec $a=a_0, b=b_0$ et $\sigma²=s_0$.
+```{r}
+plot(xi, Yi, main = TeX("Nuage des points et droite de régression pour ($x_i$, $y_i$)"), xlab = TeX("x"), ylab = TeX("y"))
+abline(a0, b0, col = "#0084ff")
+```
+
+## (Q3) Fonctions "b_estim", "a_estim" et "sigma_estim"
+Nous pouvons déduire les fonctions d'après les formules de la partie 1.2. pour les estimateurs sans biais de $a$ et $b$, et de la partie 1.3. pour celui de $s_0$.
+```{r}
+b_estim <- function(xi, Yi) {
+    x_bar <- mean(xi)
+    Y_bar <- mean(Yi)
+
+    SxY <- mean((Yi - Y_bar) * (xi - x_bar))
+    sx2 <- mean((xi - x_bar)^2)
+
+    return(SxY / sx2)
+}
+
+a_estim <- function(xi, Yi) {
+    Y_bar <- mean(Yi)
+    b_hat <- b_estim(xi, Yi)
+    x_bar <- mean(xi)
+
+    return(Y_bar - b_hat * x_bar)
+}
+
+sigma_estim <- function(xi, Yi) {
+    a_hat <- a_estim(xi, Yi)
+    b_hat <- b_estim(xi, Yi)
+
+    return(mean((Yi - a_hat - b_hat * xi)^2))
+}
+```
+
+## (Q4) Estimation de $a$, $b$ et $\sigma^2$
+On appelle les fonctions qu'on vient de créer, avec en paramètres les variables aléatoires $x$ et $y$ générées plus haut.
+```{r}
+a_hat <- a_estim(xi, Yi)
+b_hat <- b_estim(xi, Yi)
+sig_hat <- sigma_estim(xi, Yi)
+
+print(paste("a^ =", a_hat))
+print(paste("b^ =", b_hat))
+print(paste("s^ =", sig_hat))
+```
+
+## (Q5) Nuage de points de $y=a_0 + b_0$
+Nous utilisons les mêmes fonctions que précédemment pour afficher le graphique.
+Nous affichons le nuage de points $(x_i, y_i)_{1\le i\le n}$ simulés en (Q1a) et
+(Q1b), la droite de régression $y = a_0 +  b_0 x$ en rouge, ainsi que la droite 
+des moindres carrés $y = \hat{a} + \hat{b} x$ en bleu.
+La fonction ```abline``` prend en argument l'ordonnée à l'origine et la pente.
+```{r}
+plot(xi, Yi, main = "Nuage de points, droite de régression et droite des moindres carrés", xlab = TeX("x"), ylab = TeX("y"))
+abline(a0, b0, col = "red")
+abline(a_hat, b_hat, col = "blue")
+```
+
+## (Q6) Vecteur des résidus $ê_i$
+La formule suivante permet de calculer le vecteur des résidus : $ê_i = Y_i - Ŷ_i$. 
+Pour vérifier les propriétés des résidus, nous sommons tous les résidus $ê_i$ de $0$ à $n$.
+```{r}
+print(mean(Yi) - (a_hat + b_hat * mean(xi))) # y_bar = a_hat - b_hat * x_bar
+e_hat <- Yi - (a_hat + b_hat * xi) # residus
+print(sum(e_hat)) # Somme nulle
+```
+
+## (Q7) Appartenance $(\overline{x},\overline{y})$
+Pour vérifier si le couple $(\bar{x}, \bar{y})$ appartient à la droite des moindres carrés $y = \hat{a} + \hat{b} x$, on remplace x par ```mean(x)``` dans l'expression de la droite, et on compare avec ```mean(y)``` : soit en faisant la différence manuellement, soit en utilisant la fonction ```all.equal``` qui renvoit ```True``` ou ```False```.
+```{r}
+resultat <- mean(Yi) - a0 + b0 * mean(xi)
+print(resultat)
+resultat == 0
+# ou
+all.equal(a0 + b0 * mean(xi), mean(Yi))
+```
+
+## (Q8) Correspondances  
+Nous fournissons la correspondance poru les paramètres $a$, $b$, et les résidus $ê_i$. Nous comparons encore une fois les valeurs avec la fonction ```all.equal```.
+Chaque appel renvoie ```True``` ce qui montre que nos calculs sont justes par rapport à ceux de la fonction ```lm``` et ```summary```.
+```{r}
+reg <- lm(Yi ~ 1 + xi) # stockage de la fonction linear model
+summary(reg)
+
+lm_coef_a <- summary(reg)$coefficients[1, 1]
+all.equal(lm_coef_a, a_hat)
+
+lm_coef_b <- summary(reg)$coefficients[2, 1]
+all.equal(lm_coef_b, b_hat)
+
+all.equal(mean(e_hat), mean(summary(reg)$residuals))
+```
+
+## (Q9) Illustration graphique la convergence
+Afin de montrer la convergence en probabilité de $\hat{a}$ et $\hat{b}$ vers $a = a_0$ et $b = b_0$, nous réalisations une boucle for avec un nombre $n$ fixé (avec une valeur choisie, ici 5000) qui appelle $n$ fois la fonction ```a_estim``` pour une taille de $n$ éléments. Comme vu plus haut, nous affichons les valeurs avec les fonctions ```plot```, ```abline``` et nous ajoutons la valeur de $\hat{a}$ avec ```text```.  
+```{r}
+a_hats <- c()
+b_hats <- c()
+
+nMax <- 50000
+Ns <- seq(200, nMax, 100)
+
+for (n in Ns) {
+    s <- generate_sample(n)
+
+    a_hats <- c(a_hats, a_estim(s$xi, s$Yi))
+    b_hats <- c(b_hats, b_estim(s$xi, s$Yi))
+}
+```
+
+Nous faisons la même chose pour $\hat{b}$.
+
+```{r}
+plot(Ns, a_hats,
+    type = "l", col = "red",
+    main = TeX("Convergence en probabilité de â vers $a = a_0$"),
+    xlab = TeX("$n_s$"), ylab = TeX("\\hat{a}")
+)
+abline(h = a0)
+text(nMax - nMax / 2, a0 + abs(a0 - max(a_hats)) * 0.5, TeX(paste("$\\hat{a} = ", a0)),
+    col = "black"
+)
+```
+
+```{r}	
+plot(Ns, b_hats,
+    type = "l", col = "blue",
+    main = TeX("Convergence en probabilité de $\\hat{b}$ vers $b = b_0$"),
+    xlab = TeX("$n_s$"), ylab = TeX("\\hat{b}")
+)
+abline(h = b0)
+text(nMax - nMax / 2, b0 + abs(b0 - max(b_hats) ) * 0.5 , TeX(paste("$\\hat{b} = ", b0)),
+    col = "black"
+)
+```
+
+## (Q10) Illustration de la formule
+Nous générons 150 fois la fonction pivotale de a, le résultat est utilisé pour afficher l'histogramme
+à l'aide de la fonction ```hist``` et nous générons la courbe de la fonction de densité de la loi student avec un $n-2$ degré de iberté à l'aide de la fonction ```curve```.
+```{r}
+n <- 10000 # Un peu boosté pour que ce soit plus obvious
+f <- function(n) {
+    s <- generate_sample(n)
+
+    a_hat <- a_estim(s$xi, s$Yi)
+    sig_hat <- sigma_estim(s$xi, s$Yi)
+    x_bar <- mean(s$xi)
+    sx2 <- mean((s$xi - x_bar)^2)
+
+    return((a_hat - a0) / sqrt(sig_hat / n * (1 + x_bar^2 / sx2)))
+}
+centered_a_hat <- replicate(150, f(n))
+
+hist(centered_a_hat, freq = FALSE,
+    main = TeX("Histogramme de â centré"),
+    xlab = TeX("â centré"),
+    ylab = TeX("Densité")
+
+)
+curve(dt(x, n - 2),
+    from = floor(min(centered_a_hat) - 1),
+    to = floor(max(centered_a_hat) + 1),
+    add = TRUE,
+) # dt (fonction de densité de proba de Student) prends en argument
+```
+
+## (Q11) Fonctions "gen_IC_a", "gen_IC_b" et "gen_IC_s" 
+Pour chaque paramètre, nous crééons une fonction qui génère les intervalles de confiance.
+Chaque fonction retourne un vecteur contenant la valeur maximale et minimale de l'intervalle de confiance.
+```{r}
+gen_IC_a <- function(s, alpha) {
+    n <- length(s$xi)
+
+    a_hat <- a_estim(s$xi, s$Yi)
+
+    t <- qt(1 - alpha / 2, n - 2)
+
+    s_hat <- sigma_estim(s$xi, s$Yi)
+    x_bar <- mean(s$xi)
+    sx2 <- mean((s$xi - x_bar)^2)
+
+    sqr <- sqrt(s_hat / n * (1 + x_bar^2 / sx2))
+
+    return(c(a_hat - t * sqr, a_hat + t * sqr))
+}
+
+gen_IC_b <- function(s, alpha) {
+    n <- length(s$xi)
+
+    b_hat <- b_estim(s$xi, s$Yi)
+
+    t <- qt(1 - alpha / 2, n - 2)
+    s_hat <- sigma_estim(s$xi, s$Yi)
+    sx2 <- mean((s$xi - mean(s$xi))^2)
+
+    sqr <- sqrt(s_hat / (n * sx2))
+    return(c(b_hat - t * sqr, b_hat + t * sqr))
+}
+
+gen_IC_s <- function(s, alpha) {
+    n <- length(s$xi)
+    s_hat <- sigma_estim(s$xi, s$Yi)
+
+    denom_min <- qchisq(1 - alpha / 2, n - 2)
+
+    denom_max <- qchisq(alpha / 2, n - 2)
+
+    min <- ((n - 2) * s_hat) / denom_min
+    max <- ((n - 2) * s_hat) / denom_max
+
+    return(c(min, max))
+}
+```
+
+## (Q12) Intervalles de confiance pour $a$, $b$ et $\sigma^2$ 
+Nous appelons les fonctions gen_IC_a, gen_IC_b et gen_IC_s 100 fois
+avec un niveau de signification $\alpha = 0.05$
+```{r}
+# Quelle valeur pour alpha ?
+IC_a <- replicate(100, gen_IC_a(sample, 0.05))
+IC_b <- replicate(100, gen_IC_b(sample, 0.05))
+IC_s <- replicate(100, gen_IC_s(sample, 0.05))
+```
+
+## (Q13) Visualisation des intervalles de confiance
+On affiche les intervalles de confiance pour l'estimateur de $a$, celui de $b$ et de $\sigma$.
+```{r}
+source("utils.R")
+plot_ICs(IC_a, a_hat, main = TeX("Intervalle de confiance de $\\ \\hat{a}$"))
+plot_ICs(IC_b, b_hat, main = TeX("Intervalle de confiance de $\\ \\hat{b}$"))
+plot_ICs(IC_s, sig_hat, main = TeX("Intervalle de confiance de $\\ \\hat{\\sigma}$"))
+```
+
+```{r echo = F, results = 'hide'}
+xlim <- a_hat + c(-1, 1) * max(abs(IC_a - a_hat))
+tol_a_hat <- round((xlim[2] - ((xlim[2] + xlim[1]) / 2)) * 2, 2)
+
+xlim <- b_hat + c(-1, 1) * max(abs(IC_b - b_hat))
+tol_b_hat <- round((xlim[2] - ((xlim[2] + xlim[1]) / 2)) * 2, 2)
+
+xlim <- sig_hat + c(-1, 1) * max(abs(IC_s - sig_hat))
+tol_sigma_hat <- round((xlim[2] - ((xlim[2] + xlim[1]) / 2)) * 2, 2)
+```
+
+Nous pouvons constater que l'intervalle de confiance de $\hat{b}$ est le plus précis
+des trois car son intervalle de tolérance est à `r tol_b_hat`, tandis que ceux de 
+$\hat{a}$ et $\hat{\sigma}$ sont respectivement de `r tol_a_hat` et `r tol_sigma_hat`. 
+Ainsi, le calcul de l'estimateur de b est plus exact que ceux pour l'estimateur
+de a et de sigma.
+
+
+# III. Jeu de données réelles "Real_Data"
+Nous choisissons le jeu de données "bodyfat" dont la premiere colonne représente
+le taux de masse grasse dans le corps (en %), la seconde, le taux de masse 
+grasse dans les triceps, la troisième, le taux de masse grasse dans les cuisses,
+et la dernière le taux de masse grasse dans les bras.
+Nous chercherons d'abord à savoir lequel de ces 3 taux a le plus d'influence sur 
+celui dans le corps. Et nous étudierons ensuite à quel point cette variable 
+explique la taux de masse grasse corporelle.
+
+```{r}
+real_data <- read.table("bodyfat.dat", header = TRUE)
+```
+
+## III.1. Quelques éléments de statistique descriptive
+
+### (Q14) Motivation du choix et statistique descriptive
+
+Pour choisir une paire de variables qui convient, nous étudions, pour chacune
+des paires, le graphique en nuage de points, la droite de régression d'équation
+$y = a_0 + b_0x$, ainsi que le coefficient de corrélation de Pearson.
+
+Dans chacun des cas, nous prenons en tant que variable à expliquer, le taux de 
+gras corporel, et en tant que variable explicative, le taux de gras dans les 
+triceps, les cuisses, ou les bras.
+
+D'après les graphiques, nous constatons que le couple (xi_midarm, yi_fat) n'est
+pas un bon choix car la relation de linéarité n'est pas très bien marquée.
+Leur coefficient de corrélation nous confirme que nous n'allons pas choisir ce 
+couple car il est trop proche de 0 comparé aux autres.
+
+Pour faire le choix entre le couple (xi_triceps, yi_fat) et (xi_thigh, yi_fat),
+nous allons prendre celui dont le coefficient de corrélation est le plus proche
+de 1 : c'est le couple (xi_thigh, yi_fat).
+
+Ce choix semble cohérent car c'est généralement dans cette partie du corps 
+humain qu'est stocké la majorité de la masse grasse.
+
+```{r}
+yi_fat <- real_data$Fat
+xi_triceps <- real_data$Triceps
+xi_thigh <- real_data$Thigh
+xi_midarm <- real_data$Midarm
+
+plot(xi_triceps, yi_fat,
+    main = "Nuage de points (xi_triceps, yi_fat)",
+    xlab = "Taux de masse grasse des triceps",
+    ylab = "Taux de masse grasse corporelle"
+)
+abline(a_estim(xi_triceps, yi_fat), b_estim(xi_triceps, yi_fat), col = "red")
+
+plot(xi_thigh, yi_fat,
+    main = "Nuage de points (xi_thigh, yi_fat)",
+    xlab = "Taux de masse grasse des cuisses",
+    ylab = "Taux de masse grasse corporelle"
+)
+abline(a_estim(xi_thigh, yi_fat), b_estim(xi_thigh, yi_fat), col = "blue")
+
+plot(xi_midarm, yi_fat,
+    main = "Nuage de points (xi_midarm, yi_fat)",
+    xlab = "Taux de masse grasse des bras",
+    ylab = "Taux de masse grasse corporelle"
+)
+abline(a_estim(xi_midarm, yi_fat), b_estim(xi_midarm, yi_fat), col = "green")
+
+# Coefficient de corrélation de Pearson :
+coef_cor_triceps <- cor(xi_triceps, yi_fat, method = "pearson")
+coef_cor_thigh <- cor(xi_thigh, yi_fat, method = "pearson")
+coef_cor_midarm <- cor(xi_midarm, yi_fat, method = "pearson")
+
+print("coefficient de corrélation pour xi_triceps et yi_fat : ")
+print(coef_cor_triceps)
+
+print("coefficient de corrélation pour xi_thigh et yi_fat :")
+print(coef_cor_thigh)
+
+print("coefficient de corrélation pour xi_midarm et yi_fat : ")
+print(coef_cor_midarm)
+```
+
+## 2.2. Estimation ponctuelle et par IC des paramètres
+### (Q15) Estimation des paramètres 
+
+Pour le couple (xi_thigh, yi_fat) :
+Nous estimons les paramètres $a$ et $b$ avec les fonctions ```a_estim``` et
+```b_estim``` que nous avons créées dans la partie II (Q3).
+Puis nous affichons le nuage de points $(x_i, y_i)_{1\le i\le n}$ avec la
+fonction ```plot``` et la droite des moindres carrés $y = \hat{a} + \hat{b} x$.
+
+Le choix de notre modèle semble pertinent car la droite des moindres carrés
+passe au mieux parmi le nuage de points et démontre une certaine linéarité entre
+les deux variables yi_fat et xi_thigh.
+
+Il est toujours intéressant de vérifier nos estimateurs avec ceux calculés par 
+la fonction lm() et summary(). Nous constatons une différence d'environ 2.39 
+pour l'estimateur de a, et une plus petite différence de 0.05 pour l'estimateur 
+de b. Cette différence n'est pas assez importante pour modifier notre choix de 
+couple $(x_i, y_i)_{1\le i\le n}$. Pour les résidus, nous avons un résultat 
+cohérent.
+
+```{r}
+a_hat_thigh <- a_estim(xi_thigh, yi_fat)
+print("estimateur de a :")
+print(a_hat_thigh)
+
+b_hat_thigh <- b_estim(xi_thigh, yi_fat)
+print("estimateur de b :")
+print(b_hat_thigh)
+
+sig_hat_thigh <- sigma_estim(xi_thigh, yi_fat)
+print("estimateur de sigma :")
+print(sig_hat_thigh)
+
+model <- lm(yi_fat ~ 1 + xi_thigh)
+summary(model)
+
+plot(xi_thigh, yi_fat,
+    main = "Nuage de points et droite des moindres carrés
+     pour (xi_thigh, yi_fat)",
+    xlab = "Taux de masse grasse des cuisses",
+    ylab = "Taux de masse grasse corporelle"
+)
+abline(model, col = "red")
+
+lm_coef_a_thigh <- summary(model)$coefficients[1, 1]
+print("L'estimateur calculé de a est-il égal au coefficient a de la fonction lm() ?")
+all.equal(lm_coef_a_thigh, a_hat_thigh)
+
+lm_coef_b_thigh <- summary(model)$coefficients[2, 1]
+print("L'estimateur calculé de b est-il égal au coefficient b de la fonction lm() ?")
+all.equal(lm_coef_b_thigh, b_hat_thigh)
+
+e_hat_thigh <- yi_fat - (a_hat_thigh + b_hat_thigh * xi_thigh)
+print("Le vecteur des résidus calculé est-il égal à celui de la fonction lm() ?")
+all.equal(mean(e_hat_thigh), mean(summary(model)$residuals))
+```
+
+### (Q16) Détermination d'une estimation par intervalle de confiance de a et b.
+
+La fonction ```confint``` prend en argument le model, et le niveau de confiance
+$1-\alpha = 0.95$.
+La première ligne indique l'intervalle de confiance pour le paramètre $a$.
+La deuxième ligne indique l'intervalle de confiance pour le paramètre $b$.
+```{r}
+confint(model, level = 0.95)
+```
+
+## III.3 Qualité de l'ajustement
+## III.3.1 Coefficient de détermination
+
+### (Q17) Coefficient de détermination $R²$ de la régression linéaire
+
+Nous utilisons pour déterminer $R²$ la fonction summary de la façon suivante :
+
+```{r}
+print("coefficient de détermination R² :")
+R2 <- summary(model)[["r.squared"]]
+print(R2)
+```
+
+Mais nous pouvons aussi le calculer à la main :
+
+```{r}
+sxy <- mean((yi_fat - mean(yi_fat)) * (xi_thigh - mean(xi_thigh)))
+sx2 <- mean((xi_thigh - mean(xi_thigh))^2)
+sy2 <- mean((yi_fat - mean(yi_fat))^2)
+
+R2_calcul <- (sxy^2) / ((sx2) * (sy2))
+print("coefficient de détermination R² calculé :")
+print(R2_calcul)
+```
+Le coefifficient de determination étant beaucoup plus petit que 1, nos variables aléatoires 
+n'appartiennent pas à la droite de régréssion linéaire. 
+En conséquences, les prédictions réalisées par notre modèle ne seront pas valide à 100%.
+
+### (Q18) Vérification de l'égalité entre le carré du coefficient de corrélation
+### de Pearson et R² trouvé précédemment. 
+
+On affiche la différence entre le carré du coefficient de corrélation de Pearson
+et le coefficient de détermination $R²$ trouvé à la question précédente (Q17).
+On trouve une valeur très proche de 0, l'égalité est donc vérifiée.
+Autre manière de vérifier l'égalité : on utilise la fonction ```all.equal```
+et elle nous renvoie TRUE.
+
+```{r}
+print("Différence entre le coefficient de corrélation et R2 :")
+coef_cor_thigh^2 - R2
+print("Vérification de l'égalité entre les deux avec all.equal :")
+all.equal(R2, coef_cor_thigh^2)
+```
+
+## III.3.2 Test de l'hypothèse H_0 : b = 0 contre H_1 : le complémentaire de H_0
+### (Q19) Test si le coefficient de la pente $b$ est nul
+Le coefficient de coorélation n'étant pas nul, nous pouvons confirmer l'hypothèse $H_1$ 
+(le coefficient de la pente b n'est pas nul) ce qui nous permet de valider le modèle de régression linéaire.
+```{r}
+model$coefficients["xi_thigh"]
+```
+
+## III.4 Validation des hypothèses 
+### (Q20) Évaluation visuelle de la normalité des résidus corrigés
+On remarque que les résidus sont normalisés (il peut être acceptable de considérer que les résidus 
+suivent une loi normale.)
+
+```{r}
+# On affiche les résidus corrigés
+qqnorm(summary(model)$residuals)
+qqline(summary(model)$residuals)
+```
+
+### (Q21) Évaluation visuelle de l'indépendance des résidus corrigés et l'hypothèse d'homoscédasticité
+
+On affiche l'indépendance des résidus corrigés et l'hypothèse d'homoscédasticité
+Les residus corrigés se repartissent le long de la droite $y=0$ et 
+les écart des residus par rapport a cette droite restent constant le long de 
+l'axe des abscisses.
+```{r}
+plot(xi_thigh, rstandard(model))
+abline(0, 0, col = "red")
+```
+
+
+## III.5 Prévision 
+### (Q22)  Considérer deux nouvelles valeurs de x pour lesquelles on déterminera un intervalle de confiance pour $E(Y_0)$ au niveau 0.95 et un intervalle de prédiction au niveau 0.95.
+Pour calculer l'interface de confiance et de prediction, nous utilisons la fonction ```predict``` 
+de la bibliothèque ```lm``` qui prend en compte le parametre du modele de regression linéaire ainsi 
+que les nouvelles valeurs de $x$ sous forme de ```data.frame```.
+
+Dans la modélisation prédictive, un intervalle de confiance peut être utilisé pour quantifier 
+l’incertitude de la compétence estimée d’un modèle, tandis qu’un intervalle de prédiction peut 
+être utilisé pour quantifier l’incertitude d’une seule prévision.
+
+Un intervalle de confiance quantifie l'incertitude sur une variable de population estimée, 
+telle que la moyenne ou l'écart-type. Alors qu'un intervalle de prédiction quantifie 
+l'incertitude sur une seule observation estimée à partir de la population.
+
+
+
+```{r}
+new_data <- data.frame(xi_thigh = c(35, 60))
+predict(model, new_data, interval = "confidence", level = 0.95)
+predict(model, new_data, interval = "prediction", level = 0.95)
+```
+
+## III.6 Conclusion
+### (Q23) Votre conclusion en deux ou trois phrases.
+
+Le choix du couple Fat et Thigh est pertinent pour la prédiction, car les résultats sont cohérents. 
+Cependant nous arrivons à un coefficient de corrélation de 0.93, que nous trouvons assez faible.
+Ceci pourrait s'expliquer par le nombre réduit des données ou par le manque de précision des appareils de mesure.
+
